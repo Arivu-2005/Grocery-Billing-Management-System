@@ -4,6 +4,11 @@
  * GROCERY BILLING SYSTEM - HISTORY MAKER TECH
  */
 
+// Enable output buffering to prevent "headers already sent" warnings across all modules
+if (ob_get_level() === 0) {
+    ob_start();
+}
+
 require_once __DIR__ . '/config.php';
 
 // Database Credentials (Supports Environment Variables for Cloud Deployment & Standard XAMPP Defaults)
