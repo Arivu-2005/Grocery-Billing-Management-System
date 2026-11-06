@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: grocery_billing_web
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=grocery_billing_db
+      - DB_USER=root
+      - DB_PASS=rootpassword
+    depends_on:
+      - db
+    networks:
+      - grocery_network
+
+  db:
+    image: mysql:8.0
+    container_name: grocery_billing_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: grocery_billing_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/database.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - grocery_network
+
+volumes:
+  db_data:
+
+networks:
+  grocery_network:
+    driver: bridge
