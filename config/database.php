@@ -63,8 +63,7 @@ function getDbConnection() {
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+            PDO::ATTR_EMULATE_PREPARES   => false
         ];
 
         // Try primary DB_NAME, with fallback to grocery_billing_db if primary fails
@@ -80,6 +79,7 @@ function getDbConnection() {
             $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . $db . ";charset=" . DB_CHARSET;
             try {
                 $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+                $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
                 break;
             } catch (PDOException $e) {
                 $lastError = $e;
@@ -146,6 +146,37 @@ HTML;
  * Render user-friendly HTML error if DB connection fails
  */
 function renderDbConnectionError($errorMsg) {
+    $isVercel = isset($_SERVER['VERCEL']) || (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'vercel.app') !== false);
+    
+    if ($isVercel) {
+        $envSection = <<<HTML
+        <div class="alert alert-info text-start small mb-3">
+            <strong>🌐 Cloud Deployment Notice (Vercel):</strong><br>
+            Vercel functions run in cloud containers without a local MySQL server.
+            <hr class="my-2">
+            <strong>Two Ways to Run:</strong>
+            <ol class="ps-3 mb-0 mt-1">
+                <li class="mb-1"><strong>Run on Localhost (Recommended for testing):</strong><br>
+                    Open <a href="http://localhost/GroceryBillingSystem/" class="fw-bold text-decoration-underline" target="_blank">http://localhost/GroceryBillingSystem/</a> with XAMPP Apache & MySQL started.
+                </li>
+                <li><strong>Connect Vercel to a Cloud MySQL Database:</strong><br>
+                    Create a free MySQL database on <a href="https://aiven.io/" target="_blank" class="fw-bold">Aiven</a> or <a href="https://tidbcloud.com/" target="_blank" class="fw-bold">TiDB Cloud</a>, then add <code>DB_HOST</code>, <code>DB_PORT</code>, <code>DB_USER</code>, <code>DB_PASS</code>, and <code>DB_NAME</code> in your <strong>Vercel Project &rarr; Settings &rarr; Environment Variables</strong>.
+                </li>
+            </ol>
+        </div>
+HTML;
+    } else {
+        $envSection = <<<HTML
+        <ul class="text-start text-muted small mb-4">
+            <li>Ensure <strong>Apache</strong> and <strong>MySQL</strong> are started in the XAMPP Control Panel.</li>
+            <li>Default MySQL credentials are user: <code>root</code> with empty password.</li>
+            <li>If your MySQL uses a password or custom port, update <code>config/database.php</code>.</li>
+        </ul>
+HTML;
+    }
+
+    $dbHostEscaped = htmlspecialchars(DB_HOST);
+
     return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -155,23 +186,19 @@ function renderDbConnectionError($errorMsg) {
     <title>Database Connection Error - FreshMart</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #F8FAFC; color: #1E293B; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .setup-card { max-width: 580px; width: 100%; border-radius: 1rem; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.07); }
+        body { background-color: #F8FAFC; color: #1E293B; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+        .setup-card { max-width: 600px; width: 100%; border-radius: 1rem; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.07); }
     </style>
 </head>
 <body>
     <div class="card setup-card p-4 p-md-5 bg-white text-center">
-        <h3 class="fw-bold text-danger mb-3">Database Connection Failed</h3>
-        <p class="text-muted">Could not connect to MySQL server at <code>localhost</code>.</p>
+        <h3 class="fw-bold text-danger mb-2">Database Connection Failed</h3>
+        <p class="text-muted mb-3">Could not connect to MySQL server at <code>{$dbHostEscaped}</code>.</p>
         <div class="alert alert-danger text-start small mb-3">
             <strong>Error Details:</strong> {$errorMsg}
         </div>
-        <ul class="text-start text-muted small mb-4">
-            <li>Ensure <strong>Apache</strong> and <strong>MySQL</strong> are started in the XAMPP Control Panel.</li>
-            <li>Default MySQL credentials are user: <code>root</code> with empty password.</li>
-            <li>If your MySQL uses a password or custom port, update <code>config/database.php</code> or set environment variables.</li>
-        </ul>
-        <button onclick="location.reload()" class="btn btn-primary px-4">Retry Connection</button>
+        {$envSection}
+        <button onclick="location.reload()" class="btn btn-primary px-4 mt-2">Retry Connection</button>
     </div>
 </body>
 </html>
