@@ -1,7 +1,7 @@
 <?php
 /**
  * Vercel Serverless Entry Point Router
- * Grocery Billing Management System
+ * GROCERY BILLING SYSTEM - HISTORY MAKER TECH
  */
 
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -40,6 +40,12 @@ if (file_exists($targetFile) && is_file($targetFile)) {
         header('Content-Type: ' . $mimeTypes[$ext]);
     }
     readfile($targetFile);
+    exit;
+}
+
+// Check if directory with index.php
+if (is_dir($targetFile) && file_exists($targetFile . '/index.php')) {
+    require $targetFile . '/index.php';
     exit;
 }
 

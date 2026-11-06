@@ -1,27 +1,18 @@
 <?php
 /**
  * Database & Application Configuration
- * Grocery Billing Management System
+ * GROCERY BILLING SYSTEM - HISTORY MAKER TECH
  */
+
+require_once __DIR__ . '/config.php';
 
 // Database Credentials (Supports Environment Variables for Cloud Deployment & Standard XAMPP Defaults)
 defined('DB_HOST') or define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 defined('DB_USER') or define('DB_USER', getenv('DB_USER') ?: 'root');
 defined('DB_PASS') or define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
-defined('DB_NAME') or define('DB_NAME', getenv('DB_NAME') ?: 'grocery_billing_db');
+defined('DB_NAME') or define('DB_NAME', getenv('DB_NAME') ?: 'grocery_billing');
 defined('DB_PORT') or define('DB_PORT', getenv('DB_PORT') ? (int)getenv('DB_PORT') : 3306);
 defined('DB_CHARSET') or define('DB_CHARSET', 'utf8mb4');
-
-// Store Profile Constants
-defined('STORE_NAME') or define('STORE_NAME', 'FreshMart Supermarket');
-defined('STORE_TAGLINE') or define('STORE_TAGLINE', 'Quality Groceries & Daily Essentials');
-defined('STORE_ADDRESS') or define('STORE_ADDRESS', '#45 Market Plaza, MG Road, Bengaluru, Karnataka 560001');
-defined('STORE_PHONE') or define('STORE_PHONE', '+91 98765 43210');
-defined('STORE_EMAIL') or define('STORE_EMAIL', 'billing@freshmart.com');
-defined('STORE_GSTIN') or define('STORE_GSTIN', '29AAAAA0000A1Z5');
-defined('CURRENCY_SYMBOL') or define('CURRENCY_SYMBOL', '₹');
-defined('CURRENCY_CODE') or define('CURRENCY_CODE', 'INR');
-defined('DEFAULT_TAX_RATE') or define('DEFAULT_TAX_RATE', 5.00); // 5% GST
 
 // Calculate Dynamic Base URL
 if (!defined('BASE_URL')) {
@@ -39,14 +30,15 @@ if (!defined('BASE_URL')) {
         if ($docRoot && strpos($projectRoot, $docRoot) === 0) {
             $relativeDir = substr($projectRoot, strlen($docRoot));
         } else {
-            // Fallback using SCRIPT_NAME
+            // Fallback using SCRIPT_NAME across all subdirectories
             $script = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])) : '';
-            if (substr($script, -6) === '/admin') {
-                $relativeDir = substr($script, 0, -6);
-            } elseif (substr($script, -9) === '/database') {
-                $relativeDir = substr($script, 0, -9);
-            } else {
-                $relativeDir = rtrim($script, '/');
+            $subdirs = ['/admin', '/categories', '/products', '/customers', '/billing', '/inventory', '/reports', '/database', '/api'];
+            $relativeDir = rtrim($script, '/');
+            foreach ($subdirs as $sd) {
+                if (substr($script, -strlen($sd)) === $sd) {
+                    $relativeDir = substr($script, 0, -strlen($sd));
+                    break;
+                }
             }
         }
         
@@ -63,7 +55,6 @@ function getDbConnection() {
     static $pdo = null;
 
     if ($pdo === null) {
-        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -71,15 +62,31 @@ function getDbConnection() {
             PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
         ];
 
-        try {
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
-        } catch (PDOException $e) {
+        // Try primary DB_NAME, with fallback to grocery_billing_db if primary fails
+        $dbCandidates = [DB_NAME];
+        if (DB_NAME === 'grocery_billing') {
+            $dbCandidates[] = 'grocery_billing_db';
+        } else {
+            $dbCandidates[] = 'grocery_billing';
+        }
+
+        $lastError = null;
+        foreach ($dbCandidates as $db) {
+            $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . $db . ";charset=" . DB_CHARSET;
+            try {
+                $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+                break;
+            } catch (PDOException $e) {
+                $lastError = $e;
+            }
+        }
+
+        if ($pdo === null) {
             // Check if error is unknown database (error code 1049)
-            if ($e->getCode() == 1049) {
-                // Database doesn't exist yet, show friendly setup recommendation
-                die(renderDbMissingError($e->getMessage()));
+            if ($lastError && $lastError->getCode() == 1049) {
+                die(renderDbMissingError($lastError->getMessage()));
             } else {
-                die(renderDbConnectionError($e->getMessage()));
+                die(renderDbConnectionError($lastError ? $lastError->getMessage() : 'Database connection error'));
             }
         }
     }
@@ -115,7 +122,7 @@ function renderDbMissingError($errorMsg) {
             </svg>
         </div>
         <h3 class="fw-bold mb-2">Database Setup Required</h3>
-        <p class="text-muted mb-4">The MySQL database <code>grocery_billing_db</code> was not found on your MySQL server.</p>
+        <p class="text-muted mb-4">The MySQL database was not found on your MySQL server.</p>
         <div class="alert alert-warning text-start small mb-4">
             <strong>System Error:</strong> {$errorMsg}<br>
             Make sure MySQL is running in your XAMPP Control Panel.
@@ -123,7 +130,7 @@ function renderDbMissingError($errorMsg) {
         <div class="d-grid gap-2">
             <a href="{$seedUrl}" class="btn-green">Run 1-Click Database Installer & Seed</a>
         </div>
-        <p class="text-muted small mt-3">Or import <code>database/database.sql</code> directly in phpMyAdmin.</p>
+        <p class="text-muted small mt-3">Or import <code>database/grocery_billing.sql</code> directly in phpMyAdmin.</p>
     </div>
 </body>
 </html>
@@ -157,7 +164,7 @@ function renderDbConnectionError($errorMsg) {
         <ul class="text-start text-muted small mb-4">
             <li>Ensure <strong>Apache</strong> and <strong>MySQL</strong> are started in the XAMPP Control Panel.</li>
             <li>Default MySQL credentials are user: <code>root</code> with empty password.</li>
-            <li>If your MySQL uses a password or custom port, update <code>config/database.php</code>.</li>
+            <li>If your MySQL uses a password or custom port, update <code>config/database.php</code> or set environment variables.</li>
         </ul>
         <button onclick="location.reload()" class="btn btn-primary px-4">Retry Connection</button>
     </div>

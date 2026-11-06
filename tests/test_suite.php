@@ -336,7 +336,7 @@ assertTest("Security", "htmlspecialchars escaping neutralizes HTML/JS tags", str
 // 16. MODULE 16: MOBILE & DESKTOP RESPONSIVENESS
 // -----------------------------------------------------------------
 echo "\n[16/16] Testing Mobile & Desktop Responsiveness...\n";
-$headerContent = file_get_contents(__DIR__ . '/../includes/header.php');
+$headerContent = file_get_contents(__DIR__ . '/../includes/header.php') . file_get_contents(__DIR__ . '/../includes/navbar.php');
 $hasViewport = strpos($headerContent, 'name="viewport"') !== false;
 assertTest("Responsiveness", "Viewport meta tag present for mobile display scaling", $hasViewport, "Viewport missing");
 
