@@ -6,16 +6,15 @@
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
-    $savePath = session_save_path();
-    if (!empty($savePath) && !@is_writable($savePath)) {
-        @session_save_path(sys_get_temp_dir());
-    }
-    // Session security settings (only if headers not already sent)
     if (!headers_sent()) {
-        @ini_set('session.cookie_httponly', 1);
-        @ini_set('session.use_only_cookies', 1);
+        @ini_set('session.cookie_httponly', '1');
+        @ini_set('session.use_only_cookies', '1');
+        @ini_set('session.cookie_path', '/');
     }
-    @session_start();
+    if (!@session_start()) {
+        @session_save_path(sys_get_temp_dir());
+        @session_start();
+    }
 }
 
 require_once __DIR__ . '/../config/database.php';
@@ -67,14 +66,21 @@ function generateCsrfToken() {
 
 /**
  * Verify CSRF token
+ * Supports both primary token and recent previous token to tolerate rapid submits and tab switches
  * @param string|null $token
  * @return bool
  */
 function verifyCsrfToken($token) {
-    if (empty($_SESSION['csrf_token']) || empty($token)) {
+    if (empty($token)) {
         return false;
     }
-    return hash_equals($_SESSION['csrf_token'], $token);
+    if (!empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token)) {
+        return true;
+    }
+    if (!empty($_SESSION['csrf_token_prev']) && hash_equals($_SESSION['csrf_token_prev'], $token)) {
+        return true;
+    }
+    return false;
 }
 
 /**
