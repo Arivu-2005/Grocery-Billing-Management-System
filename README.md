@@ -235,5 +235,6 @@ Follow this step-by-step checklist to test the entire application:
 ---
 
 © 2026 FreshMart Supermarket. All rights reserved.
-#   G r o c e r y - B i l l i n g - M a n a g e m e n t - S y s t e m  
+#   G r o c e r y - B i l l i n g - M a n a g e m e n t - S y s t e m 
+ 
  
